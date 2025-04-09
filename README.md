@@ -24,4 +24,42 @@ This project was developed with the help of:
 ## 🌐 Live Demo
 👉 (https://huggingface.co/spaces/Rahul9971/Streamlit-app)
 
+🖥️ How to Run Locally
+Follow these steps to run the Movie Recommendation System on your local machine:
+
+Download the Dataset
+
+Download the movie dataset to your local machine from the provided source or repository.
+
+Ensure the file is named movies.csv (or whatever filename you're using).
+
+Open the Project in an IDE
+
+Use any IDE like VS Code, Jupyter Notebook, or PyCharm.
+
+Open the movie.ipynb (Jupyter Notebook) file to explore the logic or run it step-by-step.
+
+(Optional) Upload the Notebook
+
+If you're using Jupyter Notebook online or Google Colab, upload movie.ipynb and the dataset file into the environment.
+
+Create and Activate a Virtual Environment
+python -m venv venv
+# Activate (Windows)
+venv\Scripts\activate
+# Activate (macOS/Linux)
+source venv/bin/activate
+
+# Install Required Packages
+pip install -r requirements.txt
+
+# Run the Streamlit App
+
+streamlit run app.py
+
+
+
+After running, Streamlit will open automatically.
+
+If not, navigate to http://localhost:8501 in your browser.
 
