@@ -22,7 +22,6 @@ This project was developed with the help of:
 - ChatGPT guidance
 
 ## 🌐 Live Demo
-👉 [Add your Hugging Face Spaces URL here]
+👉 (https://huggingface.co/spaces/Rahul9971/Streamlit-app)
 
-## 📁 How to Run Locally
-1. Clone the repository:
+
