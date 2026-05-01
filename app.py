@@ -1,98 +1,169 @@
-# Movie Recommendation System using Streamlit
-# Import necessary libraries
-import streamlit as st
-import pickle
-import pandas as pd
-import requests
+"""Movie Recommendation System - Streamlit Web Application."""
 
+import streamlit as st
+import pandas as pd
+from typing import Tuple, List
+import config
+from src.recommender import load_models, recommend
+from src.utils import get_movie_list, validate_movie_input, format_vote_count
+
+# Configure Streamlit
+st.set_page_config(
+    page_title=config.PAGE_TITLE,
+    page_icon=config.PAGE_ICON,
+    layout=config.LAYOUT,
+    initial_sidebar_state=config.INITIAL_SIDEBAR_STATE
+)
+
+# Custom CSS
 st.markdown("""
     <style>
-    .stForm {
-        background-color: #5ab413;
+    .recommendation-card {
+        background-color: #f0f2f6;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    .vote-count {
+        color: #ffd700;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    .movie-title {
+        font-weight: bold;
+        font-size: 16px;
+        margin-bottom: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
 
+# Load models
+@st.cache_resource
+def load_data():
+    """Load and cache models."""
+    try:
+        movies, similarity, votes = load_models()
+        return movies, similarity, votes
+    except Exception as e:
+        st.error(f"Error loading models: {e}")
+        st.stop()
 
-# Load movie data , similarity matrix and votes
-movies = pickle.load(open('movie_list.pkl', 'rb'))
-similarity = pickle.load(open('similarity.pkl', 'rb'))
-vote = pickle.load(open('movie_vote.pkl', 'rb'))
-
-# Function to fetch movie poster from TMDB
-def fetch_poster(movie_id):
-    url = f'https://api.themoviedb.org/3/movie/{movie_id}?api_key=67f55045faf26a3520b80700703afe44'
-    data = requests.get(url)
-    data = data.json()
-    poster_path = data['poster_path']
-    full_path = f'https://image.tmdb.org/t/p/w500{poster_path}'
-    return full_path
-
-# Movie recommendation function
-def recommend(movie):
-    movie_index = movies[movies["title"] == movie].index[0]  # Get index of selected movie
-    distance = similarity[movie_index]  # Get similarity scores for the selected movie
-    movies_list = sorted(list(enumerate(distance)), reverse=True, key=lambda x: x[1])[1:6]  # Get top 5 recommendations
+# Main app
+def main():
+    """Main application function."""
     
-    recommended_movies = []  # List to store movie titles
-    recommended_movies_poster = []  # List to store movie posters
-    recommended_votes = []  # List to store movie votes
-
-    # Loop through recommended movies and fetch their details
-    for idx, _ in movies_list:
-        idx = int(idx)  # Ensure idx is an integer
-        if idx < len(movies):  # Ensure the index is within valid bounds
-            movie_id = movies.iloc[idx]["id"]
-            recommended_movies.append(movies.iloc[idx]["title"])
-            recommended_movies_poster.append(fetch_poster(movie_id))
-            recommended_votes.append(vote.iloc[idx]["vote_count"])
-        else:
-            print(f"Invalid index: {idx}")
+    # Title and description
+    st.title(config.PAGE_TITLE)
+    st.markdown("""
+        ### 🎯 Discover Similar Movies
+        Select your favorite movie and get AI-powered recommendations based on genres, cast, and more!
+    """)
     
-    return recommended_movies, recommended_movies_poster,recommended_votes
-
-
-# Streamlit UI setup
-st.title("Movie Recommendation System")
-st.header("Machine Learning Based Recommendations")
-
-# Movie selection dropdown
-selected_movie = st.selectbox("Select a Movie", movies['title'].values)
-
-# Button to trigger movie recommendations
-if st.button("Recommend"):
-    # Get recommendations and posters
-    recommend_movie, recommend_poster ,recommended_votes= recommend(selected_movie)
-
-    # Display the recommendations in a grid layout
-    col1, col2, col3, col4, col5= st.columns(5)
+    # Load data
+    movies, similarity, votes = load_data()
+    movie_list = get_movie_list(movies)
+    
+    # Sidebar
+    with st.sidebar:
+        st.header("About")
+        st.info("""
+            This app uses **Content-Based Filtering** with:
+            - **Algorithm:** Cosine Similarity
+            - **Features:** Genres, Cast, Crew, Keywords
+            - **Database:** 1,000+ Movies
+        """)
+        
+        st.header("How It Works")
+        st.markdown("""
+            1. Select a movie from the dropdown
+            2. Click the "Recommend" button
+            3. View 5 similar movies with posters
+        """)
+        
+        st.header("Info")
+        st.text(f"Version: {config.VERSION}")
+        st.text(f"Total Movies: {len(movies)}")
+    
+    # Movie selection
+    col1, col2 = st.columns([3, 1])
     
     with col1:
-        st.text(recommend_movie[0])
-        st.markdown(f"<p style='color:yellow;'>Votes: {recommended_votes[0]}</p>", unsafe_allow_html=True)
-        st.image(recommend_poster[0])
-        
+        selected_movie = st.selectbox(
+            "Select a Movie",
+            movie_list,
+            help="Choose from 1,000+ movies"
+        )
+    
     with col2:
-        st.text(recommend_movie[1])
-        # st.text(f"Votes: {recommended_votes[1]}")
-        st.markdown(f"<p style='color:yellow;'>Votes: {recommended_votes[1]}</p>", unsafe_allow_html=True)
-        st.image(recommend_poster[1])
+        recommend_button = st.button(
+            "🎬 Recommend",
+            use_container_width=True,
+            type="primary"
+        )
+    
+    # Get recommendations
+    if recommend_button:
+        # Validate input
+        if not validate_movie_input(selected_movie, movies):
+            st.error("⚠️ Invalid movie selection. Please try another movie.")
+            return
         
-    with col3:
-        st.text(recommend_movie[2])
-        # st.text(f"Votes: {recommended_votes[2]}")
-        st.markdown(f"<p style='color:yellow;'>Votes: {recommended_votes[2]}</p>", unsafe_allow_html=True)
+        try:
+            # Get recommendations
+            with st.spinner("Finding similar movies..."):
+                recommended_movies, recommended_posters, recommended_votes = recommend(
+                    selected_movie, movies, similarity, votes
+                )
+            
+            # Display results
+            st.success(f"✅ Found {len(recommended_movies)} similar movies!")
+            
+            # Display recommendations in columns
+            cols = st.columns(config.COLUMN_COUNT)
+            
+            for idx, col in enumerate(cols):
+                if idx >= len(recommended_movies):
+                    break
+                
+                with col:
+                    st.markdown(f"<div class='recommendation-card'>", unsafe_allow_html=True)
+                    
+                    # Movie title
+                    st.markdown(
+                        f"<div class='movie-title'>{recommended_movies[idx]}</div>",
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Vote count
+                    vote_formatted = format_vote_count(recommended_votes[idx])
+                    st.markdown(
+                        f"<div class='vote-count'>⭐ {vote_formatted} votes</div>",
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Movie poster
+                    if recommended_posters[idx]:
+                        st.image(
+                            recommended_posters[idx],
+                            use_column_width=True,
+                            caption=""
+                        )
+                    else:
+                        st.warning("Poster not available")
+                    
+                    st.markdown("</div>", unsafe_allow_html=True)
+        
+        except Exception as e:
+            st.error(f"❌ Error getting recommendations: {e}")
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("""
+        <center>
+        <p>Built with ❤️ using Streamlit | Powered by TMDB API</p>
+        <p><a href="https://github.com/Rahul7065469/movie-recommend-system-">GitHub Repository</a></p>
+        </center>
+    """, unsafe_allow_html=True)
 
-        st.image(recommend_poster[2])
-        
-    with col4:
-        st.text(recommend_movie[3])
-        # st.text(f"Votes: {recommended_votes[3]}")
-        st.markdown(f"<p style='color:yellow;'>Votes: {recommended_votes[3]}</p>", unsafe_allow_html=True)
-        st.image(recommend_poster[3])
-        
-    with col5:
-        st.text(recommend_movie[4])
-        st.markdown(f"<p style='color:Yellow;'>Votes: {recommended_votes[4]}</p>", unsafe_allow_html=True)
-        st.image(recommend_poster[4])
-        
+if __name__ == "__main__":
+    main()
