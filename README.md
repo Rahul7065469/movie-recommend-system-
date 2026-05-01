@@ -310,17 +310,3 @@ You can:
 
 ---
 
-## 📞 Support
-
-Have questions? 
-- 📬 Open an [Issue](https://github.com/Rahul7065469/movie-recommend-system-/issues)
-- 💬 Start a [Discussion](https://github.com/Rahul7065469/movie-recommend-system-/discussions)
-- 📧 Contact via GitHub
-
----
-
-**⭐ If you find this helpful, please star the repository!**
-
----
-
-*Last Updated: May 1, 2026*
